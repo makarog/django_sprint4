@@ -3,7 +3,11 @@
   <h5 class="mb-4">Оставить комментарий</h5>
   <form method="post" action="{% url 'blog:add_comment' post.id %}">
     {% csrf_token %}
-    {% bootstrap_form form %}
+    {% for field in form %}
+      {% bootstrap_field field %}
+      
+    {% endfor %}
+
     {% bootstrap_button button_type="submit" content="Отправить" %}
   </form>
 {% endif %}
