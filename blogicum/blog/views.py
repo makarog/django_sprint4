@@ -21,6 +21,7 @@ from .forms import UserEditForm, PostEditForm, CommentEditForm
 
 POST_ON_MAIN = 10
 
+
 class MainPostListView(ListView):
     """Главная страница со списком постов.
 

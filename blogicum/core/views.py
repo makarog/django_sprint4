@@ -1,17 +1,19 @@
 from django.shortcuts import render
-from django.template import RequestContext
+
 
 def e_handler404(request, exception):
     """
     Обработка ошибки 404
     """
-    return render(request, 'core/404.html', status=404) 
+    return render(request, 'core/404.html', status=404)
+
 
 def csrf_failure(request, reason=''):
     """
     Обработка ошибки 403
     """
     return render(request, 'pages/403csrf.html', status=403)
+
 
 def e_handler500(request):
     """
