@@ -5,10 +5,8 @@
     {% csrf_token %}
     {% for field in form %}
       {% bootstrap_field field %}
-      
-    {% endfor %}
-
     {% bootstrap_button button_type="submit" content="Отправить" %}
+    {% endfor %}
   </form>
 {% endif %}
 <br>
