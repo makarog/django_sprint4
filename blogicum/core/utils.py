@@ -5,7 +5,10 @@ from blog.models import Post
 from django.utils import timezone
 
 
-def post_all_query():
+POST_ON_MAIN = 10
+
+
+def get_all_posts_queryset():
     """Вернуть все посты."""
     query_set = (
         Post.objects.select_related(
@@ -21,7 +24,7 @@ def post_all_query():
 
 def post_published_query():
     """Вернуть опубликованные посты."""
-    query_set = post_all_query().filter(
+    query_set = get_all_posts_queryset().filter(
         pub_date__lte=timezone.now(),
         is_published=True,
         category__is_published=True,
@@ -39,14 +42,15 @@ def get_post_data(post_data):
         - Пост опубликован.
         - Категория в которой находится поста опубликована.
         - Дата поста не больше текущей даты.
-
-    Возвращает: Объект или 404
     """
     post = get_object_or_404(
         Post,
-        pk=post_data["pk"],
+        pk=post_data['pk'],
         pub_date__lte=timezone.now(),
         is_published=True,
         category__is_published=True,
     )
     return post
+# Не совсем (или совсем) не понимаю как явно
+# Принимать аргумент для фильтрации по "pk"
+# Если можно, то пришлите статью или доку

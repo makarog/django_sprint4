@@ -7,11 +7,7 @@ User = get_user_model()
 
 
 class Location(BaseModel):
-    """Местоположение.
-
-    Атрибуты:
-        - name: Название места.
-    """
+    """Местоположение."""
 
     name = models.CharField(
         max_length=256,
@@ -148,4 +144,4 @@ class Comment(models.Model):
         ordering = ("created_at",)
 
     def __str__(self):
-        return f"Комментарий пользователя {self.author}"
+        return f"Комментарий пользователя {self.author} {self.created_at}"

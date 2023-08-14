@@ -4,15 +4,18 @@ from django.urls import reverse
 from django.views import View
 
 from blog.models import Comment
-from core.utils import get_post_data
+from core.utils import get_post_data, POST_ON_MAIN
+
+
+class MixinListView():
+    ordering = '-pub_date'
+    paginate_by = POST_ON_MAIN
 
 
 class CommentMixinView(LoginRequiredMixin, View):
     """Mixin для редактирования и удаления комментария.
 
     Атрибуты:
-        - model: Класс модели, используемой для комментариев.
-        - template_name: Имя шаблона, используемого для отображения страницы.
         - pk_url_kwarg: Имя URL-параметра, содержащего идентификатор
         комментария.
 

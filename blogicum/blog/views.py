@@ -3,6 +3,7 @@ from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.timezone import now
+from django.utils import timezone
 from django.views.generic import (
     ListView,
     DetailView,
@@ -11,40 +12,33 @@ from django.views.generic import (
     DeleteView,
 )
 
-from core.utils import post_all_query, post_published_query, get_post_data
-from core.mixins import CommentMixinView
+from core.mixins import CommentMixinView, MixinListView
 from .models import Post, User, Category, Comment
 from .forms import UserEditForm, PostEditForm, CommentEditForm
+from core.utils import (
+    get_all_posts_queryset,
+    post_published_query,
+    get_post_data,
+)
 
 
-# Количество постов на главной.
-
-POST_ON_MAIN = 10
-
-
-class MainPostListView(ListView):
-    """Главная страница со списком постов.
-
-    Attributes:
-        - model: Класс модели, используемой для получения данных.
-        - template_name: Имя шаблона, используемого для отображения страницы.
-        - queryset: Запрос, определяющий список постов для отображения.
-        - paginate_by: Количество постов, отображаемых на одной странице.
-    """
+class MainPostListView(MixinListView, ListView):
+    """Главная страница со списком постов. """
 
     model = Post
     template_name = "blog/index.html"
-    queryset = post_published_query()
-    ordering = '-pub_date'
-    paginate_by = POST_ON_MAIN
+
+    def get_queryset(self):
+        query_set = get_all_posts_queryset().filter(
+            pub_date__lte=timezone.now(),
+            is_published=True,
+            category__is_published=True,
+        )
+        return query_set
 
 
-class CategoryPostListView(MainPostListView):
+class CategoryPostListView(MixinListView, ListView):
     """Страница со списком постов выбранной категории.
-
-    Атрибуты:
-        - template_name: Имя шаблона, используемого для отображения страницы.
-        - category: Выбранная категория.
 
     Методы:
         - get_queryset(): Возвращает список постов в выбранной категории.
@@ -60,7 +54,12 @@ class CategoryPostListView(MainPostListView):
         self.category = get_object_or_404(
             Category, slug=slug, is_published=True
         )
-        return super().get_queryset().filter(category=self.category)
+        query_set = get_all_posts_queryset().filter(
+            category=self.category,
+            pub_date__lte=timezone.now(),
+            is_published=True
+        )
+        return query_set
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -72,7 +71,6 @@ class UserPostsListView(MainPostListView):
     """Страница со списком постов пользователя.
 
     Атрибуты:
-        - template_name: Имя шаблона, используемого для отображения страницы.
         - author: Автор постов.
 
     Методы:
@@ -88,8 +86,9 @@ class UserPostsListView(MainPostListView):
         username = self.kwargs["username"]
         self.author = get_object_or_404(User, username=username)
         if self.author == self.request.user:
-            return post_all_query().filter(author=self.author)
+            return get_all_posts_queryset().filter(author=self.author)
         return super().get_queryset().filter(author=self.author)
+    '''Не понял как тут использовать prefetch_related() :c'''
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -101,8 +100,6 @@ class PostDetailView(DetailView):
     """Страница выбранного поста.
 
     Атрибуты:
-        - model: Класс модели, используемой для получения данных.
-        - template_name: Имя шаблона, используемого для отображения страницы.
         - post_data: Объект поста.
 
     Методы:
@@ -119,14 +116,16 @@ class PostDetailView(DetailView):
     def get_queryset(self):
         self.post_data = get_object_or_404(Post, pk=self.kwargs["pk"])
         if self.post_data.author == self.request.user:
-            return post_all_query().filter(pk=self.kwargs["pk"])
+            return get_all_posts_queryset().filter(pk=self.kwargs["pk"])
         return post_published_query().filter(pk=self.kwargs["pk"])
+    '''Тут тоже не совсем понял чем плоха логика ;(
+        Не совсем понимаю чем Q obj тут лучше
+        Так же не понимаю как реализовать тут pk_url_kwarg
+    '''
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if self.check_post_data():
-            context["flag"] = True
-            context["form"] = CommentEditForm()
+        context["form"] = CommentEditForm()
         context["comments"] = self.object.comments.all().select_related(
             "author"
         )
@@ -146,12 +145,6 @@ class PostDetailView(DetailView):
 class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
     """Обновление профиля пользователя.
 
-    Атрибуты:
-        - model: Класс модели, используемой для получения данных.
-        - form_class: Класс формы, используемый для обновления профиля
-        пользователя.
-        - template_name: Имя шаблона, используемого для отображения страницы.
-
     Методы:
         - get_object(queryset=None): Возвращает объект пользователя для
         обновления.
@@ -167,17 +160,12 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
         return self.request.user
 
     def get_success_url(self):
-        username = self.request.user
+        username = self.request.user.username
         return reverse("blog:profile", kwargs={"username": username})
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
     """Создание поста.
-
-    Атрибуты:
-        - model: Класс модели, используемой для создания поста.
-        - form_class: Класс формы, используемый для создания поста.
-        - template_name: Имя шаблона, используемого для отображения страницы.
 
     Методы:
         - form_valid(form): Проверяет, является ли форма допустимой,
@@ -202,11 +190,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 class PostUpdateView(LoginRequiredMixin, UpdateView):
     """Редактирование поста.
 
-    Атрибуты:
-        - model: Класс модели, используемой для редактирования поста.
-        - form_class: Класс формы, используемый для редактирования поста.
-        - template_name: Имя шаблона, используемого для отображения страницы.
-
     Методы:
         - dispatch(request, *args, **kwargs): Проверяет, является ли
         пользователь автором поста.
@@ -230,10 +213,6 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
 
 class PostDeleteView(LoginRequiredMixin, DeleteView):
     """Удаление поста.
-
-    Атрибуты:
-        - model: Класс модели, используемой для удаления поста.
-        - template_name: Имя шаблона, используемого для отображения страницы.
 
     Методы:
         - dispatch(request, *args, **kwargs): Проверяет, является ли
@@ -265,12 +244,6 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 class CommentCreateView(LoginRequiredMixin, CreateView):
     """Создание комментария.
 
-    Атрибуты:
-        - model: Класс модели, используемой для создания комментария.
-        - form_class: Класс формы, используемый для создания комментария.
-        - template_name: Имя шаблона, используемого для отображения страницы.
-        - post_data: Объект поста, к которому создается комментарий.
-
     Методы:
         - dispatch(request, *args, **kwargs): Получает объект поста.
         - form_valid(form): Проверяет, является ли форма допустимой,
@@ -293,8 +266,6 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.author = self.request.user
         form.instance.post = self.post_data
-        if self.post_data.author != self.request.user:
-            self.send_author_email()
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -323,10 +294,6 @@ class CommentUpdateView(CommentMixinView, UpdateView):
     """Редактирование комментария.
 
     CommentMixinView: Базовый класс, предоставляющий функциональность.
-
-    Атрибуты:
-        - form_class: Класс формы, используемый для редактирования
-        комментария.
     """
 
     form_class = CommentEditForm
