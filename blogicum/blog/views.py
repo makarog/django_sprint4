@@ -91,6 +91,8 @@ class UserPostsListView(MainPostListView):
 
 class PostDetailView(DetailView):
     """Страница выбранного поста.
+
+    Остановился тут -Ю
     """
 
     model = Post
