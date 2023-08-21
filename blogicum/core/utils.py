@@ -5,9 +5,6 @@ from blog.models import Post
 from django.utils import timezone
 
 
-POST_ON_MAIN = 10
-
-
 def get_all_posts_queryset():
     """Вернуть все посты."""
     query_set = (
@@ -22,7 +19,7 @@ def get_all_posts_queryset():
     return query_set
 
 
-def post_published_query():
+def get_post_published_query():
     """Вернуть опубликованные посты."""
     query_set = get_all_posts_queryset().filter(
         pub_date__lte=timezone.now(),
@@ -51,6 +48,3 @@ def get_post_data(post_data):
         category__is_published=True,
     )
     return post
-# Не совсем (или совсем) не понимаю как явно
-# Принимать аргумент для фильтрации по "pk"
-# Если можно, то пришлите статью или доку

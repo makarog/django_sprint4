@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.timezone import now
 from django.utils import timezone
+from django.db.models import Prefetch, Q
 from django.views.generic import (
     ListView,
     DetailView,
@@ -17,7 +18,7 @@ from .models import Post, User, Category, Comment
 from .forms import UserEditForm, PostEditForm, CommentEditForm
 from core.utils import (
     get_all_posts_queryset,
-    post_published_query,
+    get_post_published_query,
     get_post_data,
 )
 
@@ -38,13 +39,7 @@ class MainPostListView(MixinListView, ListView):
 
 
 class CategoryPostListView(MixinListView, ListView):
-    """Страница со списком постов выбранной категории.
-
-    Методы:
-        - get_queryset(): Возвращает список постов в выбранной категории.
-        - get_context_data(**kwargs): Возвращает контекстные данные для
-        шаблона.
-    """
+    """Страница со списком постов выбранной категории."""
 
     template_name = "blog/category.html"
     category = None
@@ -68,27 +63,25 @@ class CategoryPostListView(MixinListView, ListView):
 
 
 class UserPostsListView(MainPostListView):
-    """Страница со списком постов пользователя.
-
-    Атрибуты:
-        - author: Автор постов.
-
-    Методы:
-        - get_queryset(): Возвращает список постов автора.
-        - get_context_data(**kwargs): Возвращает контекстные данные для
-        шаблона.
-    """
+    """Страница со списком постов пользователя."""
 
     template_name = "blog/profile.html"
     author = None
-
+    
     def get_queryset(self):
         username = self.kwargs["username"]
-        self.author = get_object_or_404(User, username=username)
-        if self.author == self.request.user:
-            return get_all_posts_queryset().filter(author=self.author)
-        return super().get_queryset().filter(author=self.author)
-    '''Не понял как тут использовать prefetch_related() :c'''
+        self.author = get_object_or_404(
+            User.objects.prefetch_related(Prefetch(
+                'authors',
+                queryset=get_all_posts_queryset().filter(
+                    Q(author__username=self.request.user.username) |
+                    Q(is_published=True) &
+                    Q(category__is_published=True)&
+                    Q(pub_date__lte=timezone.now())
+                )
+            )),username=username
+        )
+        return self.author.authors.all()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -98,29 +91,33 @@ class UserPostsListView(MainPostListView):
 
 class PostDetailView(DetailView):
     """Страница выбранного поста.
-
-    Атрибуты:
-        - post_data: Объект поста.
-
-    Методы:
-        - get_queryset(): Возвращает пост.
-        - get_context_data(**kwargs): Возвращает контекстные данные для
-        шаблона.
-        - check_post(): Возвращает результат проверки поста.
     """
 
     model = Post
     template_name = "blog/detail.html"
     post_data = None
-
+    
     def get_queryset(self):
-        self.post_data = get_object_or_404(Post, pk=self.kwargs["pk"])
-        if self.post_data.author == self.request.user:
-            return get_all_posts_queryset().filter(pk=self.kwargs["pk"])
-        return post_published_query().filter(pk=self.kwargs["pk"])
-    '''Тут тоже не совсем понял чем плоха логика ;(
-        Не совсем понимаю чем Q obj тут лучше
-        Так же не понимаю как реализовать тут pk_url_kwarg
+        id = self.kwargs[self.pk_url_kwarg]
+        self.post_data = get_object_or_404(
+            User.objects.prefetch_related(Prefetch(
+                'authors',
+                queryset=get_all_posts_queryset().filter(
+                    Q(is_published=True) |
+                    Q(author=self.request.user.id)
+                )
+            )), id=id
+        )
+        return self.post_data.authors.all()
+
+
+    '''
+    self.post_data = get_object_or_404(
+            Post, pk=rest_pk
+    if self.post_data.author == self.request.user:
+            return get_all_posts_queryset().filter(pk=rest_pk)
+            old return get_post_all_query().filter(pk=self.kwargs["pk"]) 
+        return get_post_published_query().filter(pk=rest_pk)
     '''
 
     def get_context_data(self, **kwargs):
@@ -166,12 +163,6 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
 
 class PostCreateView(LoginRequiredMixin, CreateView):
     """Создание поста.
-
-    Методы:
-        - form_valid(form): Проверяет, является ли форма допустимой,
-        и устанавливает автора поста.
-        - get_success_url(): Возвращает URL-адрес для перенаправления после
-        успешного создания поста.
     """
 
     model = Post
@@ -213,14 +204,6 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
 
 class PostDeleteView(LoginRequiredMixin, DeleteView):
     """Удаление поста.
-
-    Методы:
-        - dispatch(request, *args, **kwargs): Проверяет, является ли
-        пользователь автором поста.
-        - get_context_data(**kwargs): Возвращает контекстные данные для
-        шаблона.
-        - get_success_url(): Возвращает URL-адрес перенаправления после
-        успешного удаления поста.
     """
 
     model = Post
@@ -243,15 +226,6 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
 class CommentCreateView(LoginRequiredMixin, CreateView):
     """Создание комментария.
-
-    Методы:
-        - dispatch(request, *args, **kwargs): Получает объект поста.
-        - form_valid(form): Проверяет, является ли форма допустимой,
-        и устанавливает автора комментария.
-        - get_success_url(): Возвращает URL-адрес перенаправления после
-        успешного создания комментария.
-        - send_author_email(): Отправляет email автору поста, при добавлении
-        комментария.
     """
 
     model = Comment
@@ -272,28 +246,9 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
         pk = self.kwargs["pk"]
         return reverse("blog:post_detail", kwargs={"pk": pk})
 
-    def send_author_email(self):
-        post_url = self.request.build_absolute_uri(self.get_success_url())
-        recipient_email = self.post_data.author.email
-        subject = "New comment"
-        message = (
-            f"Пользователь {self.request.user} добавил "
-            f"комментарий к посту {self.post_data.title}.\n"
-            f"Читать комментарий {post_url}"
-        )
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email="from@example.com",
-            recipient_list=[recipient_email],
-            fail_silently=True,
-        )
-
 
 class CommentUpdateView(CommentMixinView, UpdateView):
     """Редактирование комментария.
-
-    CommentMixinView: Базовый класс, предоставляющий функциональность.
     """
 
     form_class = CommentEditForm
@@ -304,5 +259,3 @@ class CommentDeleteView(CommentMixinView, DeleteView):
 
     CommentMixinView: Базовый класс, предоставляющий функциональность.
     """
-
-    ...

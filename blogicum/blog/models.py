@@ -25,10 +25,6 @@ class Location(BaseModel):
 
 class Category(BaseModel, BaseTitle):
     """Категория.
-
-    Атрибуты:
-        - description: Описание категории.
-        - slug: Идентификатор страницы для URL.
     """
 
     description = models.TextField(
@@ -54,17 +50,7 @@ class Category(BaseModel, BaseTitle):
 
 class Post(BaseModel, BaseTitle):
     """Публикация.
-
-    Атрибуты:
-        - text: Текст публикации.
-        - pub_date: Дата и время публикации, можно использовать будущие
-        даты для отложенных публикаций.
-        - author: Автор публикации.
-        - location: Местоположение публикации, может быть пустым.
-        - category: Категория публикации, может быть пустой.
-        - image: Изображение публикации может быть пустым.
     """
-
     text = models.TextField(
         verbose_name="Текст",
     )
@@ -79,6 +65,7 @@ class Post(BaseModel, BaseTitle):
         User,
         on_delete=models.CASCADE,
         verbose_name="Автор публикации",
+        related_name="authors"
     )
     location = models.ForeignKey(
         Location,
@@ -111,12 +98,6 @@ class Post(BaseModel, BaseTitle):
 
 class Comment(models.Model):
     """Комментарий.
-
-    Атрибуты:
-        - text: Текст комментария.
-        - post: Пост, к которому относится комментарий.
-        - author: Автор комментария.
-        - created_at: Дата и время добавления комментария.
     """
 
     text = models.TextField(

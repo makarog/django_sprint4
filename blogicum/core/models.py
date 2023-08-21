@@ -2,13 +2,7 @@ from django.db import models
 
 
 class BaseModel(models.Model):
-    """Базовая модель.
-
-    Атрибуты:
-        - is_published: Поле для указания статуса публикации.
-        - created_at: Поле, автоматически устанавливающее дату и время
-        создания записи.
-    """
+    """Базовая модель."""
 
     is_published = models.BooleanField(
         default=True,

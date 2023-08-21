@@ -4,10 +4,11 @@ from django.urls import reverse
 from django.views import View
 
 from blog.models import Comment
-from core.utils import get_post_data, POST_ON_MAIN
+from core.utils import get_post_data
+from core.constants import POST_ON_MAIN
 
 
-class MixinListView():
+class MixinListView:
     ordering = '-pub_date'
     paginate_by = POST_ON_MAIN
 
