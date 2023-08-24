@@ -1,7 +1,6 @@
-from django.db import models
-from django.contrib.auth import get_user_model
-
 from core.models import BaseModel, BaseTitle
+from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -24,8 +23,7 @@ class Location(BaseModel):
 
 
 class Category(BaseModel, BaseTitle):
-    """Категория.
-    """
+    """Категория."""
 
     description = models.TextField(
         verbose_name="Описание",
@@ -49,8 +47,7 @@ class Category(BaseModel, BaseTitle):
 
 
 class Post(BaseModel, BaseTitle):
-    """Публикация.
-    """
+    """Публикация."""
     text = models.TextField(
         verbose_name="Текст",
     )
@@ -97,8 +94,7 @@ class Post(BaseModel, BaseTitle):
 
 
 class Comment(models.Model):
-    """Комментарий.
-    """
+    """Комментарий."""
 
     text = models.TextField(
         verbose_name="Комментарий",

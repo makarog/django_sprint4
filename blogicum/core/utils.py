@@ -1,7 +1,6 @@
+from blog.models import Comment, Post
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-
-from blog.models import Post
 from django.utils import timezone
 
 
@@ -29,7 +28,7 @@ def get_post_published_query():
     return query_set
 
 
-def get_post_data(post_data):
+def get_post_data(pk):
     """Вернуть данные поста.
 
     Ограничивает возможность авторов писать и редактировать комментарии
@@ -40,11 +39,12 @@ def get_post_data(post_data):
         - Категория в которой находится поста опубликована.
         - Дата поста не больше текущей даты.
     """
-    post = get_object_or_404(
-        Post,
-        pk=post_data['pk'],
+    queryset = Post.objects.filter(
         pub_date__lte=timezone.now(),
         is_published=True,
         category__is_published=True,
     )
+    
+    post = get_object_or_404(queryset, pk=pk)
+
     return post
