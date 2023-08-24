@@ -64,10 +64,10 @@ class UserPostsListView(MainPostListView):
             User.objects.prefetch_related(Prefetch(
                 'authors',
                 queryset=get_all_posts_queryset().filter(
-                    Q(author__username=self.request.user.username) |
-                    Q(is_published=True) &
-                    Q(category__is_published=True) &
-                    Q(pub_date__lte=timezone.now())
+                    Q(author__username=self.request.user.username)
+                    | Q(is_published=True)
+                    & Q(category__is_published=True)
+                    & Q(pub_date__lte=timezone.now())
                 )
             )), username=username
         )
@@ -88,16 +88,16 @@ class PostDetailView(DetailView):
 
     def get_queryset(self):
         self.post_data = get_object_or_404(
-            Post,
-            (Q(is_published=True) &
-            Q(category__is_published=True) &
-            Q(pub_date__lte=timezone.now()) |
-            Q(author__username=self.request.user.username)),
-            pk=self.kwargs[self.pk_url_kwarg],
+            Post, (
+                Q(is_published=True)
+                & Q(category__is_published=True)
+                & Q(pub_date__lte=timezone.now())
+                | Q(author__username=self.request.user.username)
+            ), pk=self.kwargs[self.pk_url_kwarg],
         )
         return get_all_posts_queryset().filter(
-            Q(is_published=True)|
-            Q(author__username=self.request.user.username)
+            Q(is_published=True)
+            | Q(author__username=self.request.user.username)
         )
 
     def get_context_data(self, **kwargs):
@@ -159,7 +159,10 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
-            return redirect("blog:post_detail", pk=self.kwargs[self.pk_url_kwarg])
+            return redirect(
+                "blog:post_detail",
+                pk=self.kwargs[self.pk_url_kwarg]
+            )
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
@@ -175,7 +178,10 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
 
     def dispatch(self, request, *args, **kwargs):
         if self.get_object().author != request.user:
-            return redirect("blog:post_detail", pk=self.kwargs[self.pk_url_kwarg])
+            return redirect(
+                "blog:post_detail",
+                pk=self.kwargs[self.pk_url_kwarg]
+            )
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -197,7 +203,7 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     post_data = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.post_data = get_post_data(pk = kwargs.get('pk'))
+        self.post_data = get_post_data(pk=kwargs.get('pk'))
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -212,14 +218,14 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
 
 class CommentUpdateView(CommentMixinView, UpdateView):
     """Редактирование комментария."""
-    
+
     form_class = CommentEditForm
     pk_url_kwarg = 'comment_pk'
 
+
 class CommentDeleteView(CommentMixinView, DeleteView):
     """Удаление комментария.
-    
+
     CommentMixinView: Базовый класс, предоставляющий функциональность.
     """
     pk_url_kwarg = 'comment_pk'
-    

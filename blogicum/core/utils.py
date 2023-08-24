@@ -1,4 +1,4 @@
-from blog.models import Comment, Post
+from blog.models import Post
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -44,7 +44,6 @@ def get_post_data(pk):
         is_published=True,
         category__is_published=True,
     )
-    
     post = get_object_or_404(queryset, pk=pk)
 
     return post
